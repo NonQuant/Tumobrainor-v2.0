@@ -9,9 +9,9 @@ The dataset was taken from [here](https://www.kaggle.com/datasets/masoudnickparv
 This dataset contains 7023 images of human brain MRI images which are classified into 4 classes: glioma - meningioma - no tumor and pituitary.
 
 This dataset is a combination of the following three datasets :
-[figshare](https://figshare.com/articles/dataset/brain_tumor_dataset/1512427)
-[SARTAJ dataset](https://www.kaggle.com/datasets/sartajbhuvaji/brain-tumor-classification-mri)
-[Br35H](https://www.kaggle.com/datasets/ahmedhamada0/brain-tumor-detection?select=no)
+* [figshare](https://figshare.com/articles/dataset/brain_tumor_dataset/1512427)
+* [SARTAJ dataset](https://www.kaggle.com/datasets/sartajbhuvaji/brain-tumor-classification-mri)
+* [Br35H](https://www.kaggle.com/datasets/ahmedhamada0/brain-tumor-detection?select=no)
 
 ## Model
 
