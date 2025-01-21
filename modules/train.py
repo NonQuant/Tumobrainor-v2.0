@@ -3,6 +3,9 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
+from modules.dataset import TumobrainorDataset
+from modules.model import AttentionResNet50
+
 
 def train_one_epoch(model, dataloader, criterion, optimizer, device="cpu"):
     # Standard training loop - returns (train_loss, train_acc)
@@ -90,3 +93,59 @@ def train_and_save_best(
 
     print(f"\nTraining complete. Best validation accuracy: {best_val_acc:.2f}%")
     print(f"Best model is stored at: {best_model_path}")
+
+
+def main():
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Pretend you have numpy arrays (X_train, y_train, ...) ready
+    # X_* shape: (N, 3, H, W), y_* shape: (N,) with values {1..4}
+    # For demonstration, here we'll just create dummy data:
+    # (Replace these with your real dataset arrays)
+    N_train, N_valid, N_test = 32, 8, 8
+    X_train = torch.randn(N_train, 3, 224, 224)
+    y_train = torch.randint(1, 5, (N_train,))  # 4-class labels in {1..4}
+
+    X_valid = torch.randn(N_valid, 3, 224, 224)
+    y_valid = torch.randint(1, 5, (N_valid,))
+
+    X_test = torch.randn(N_test, 3, 224, 224)
+    y_test = torch.randint(1, 5, (N_test,))
+
+    # Create datasets
+    train_set = TumobrainorDataset(X_train, y_train)
+    valid_set = TumobrainorDataset(X_valid, y_valid)
+    test_set = TumobrainorDataset(X_test, y_test)
+
+    # Create data loaders
+    train_loader = DataLoader(
+        train_set, batch_size=4, shuffle=True, pin_memory=True, drop_last=True
+    )
+    valid_loader = DataLoader(
+        valid_set, batch_size=4, shuffle=False, pin_memory=True, drop_last=True
+    )
+    test_loader = DataLoader(
+        test_set, batch_size=4, shuffle=False, pin_memory=True, drop_last=True
+    )
+
+    # Build the attention-based ResNet model
+    model = AttentionResNet50(num_classes=4, freeze_backbone=True).to(device)
+
+    # Loss & Optimizer
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()), lr=1e-3
+    )
+
+    # Train for a few epochs (example: 2 epochs)
+    for epoch in range(2):
+        print(f"\nEpoch [{epoch+1}/2]")
+        train_one_epoch(model, train_loader, criterion, optimizer, device)
+        evaluate(model, valid_loader, criterion, device)
+
+    print("\nFinal test evaluation:")
+    evaluate(model, test_loader, criterion, device)
+
+
+if __name__ == "__main__":
+    main()
