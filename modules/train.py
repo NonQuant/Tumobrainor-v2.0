@@ -3,8 +3,8 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-from modules.dataset import TumobrainorDataset
-from modules.model import AttentionResNet50
+from dataset import TumobrainorDataset
+from model import AttentionResNet50
 
 
 def train_one_epoch(model, dataloader, criterion, optimizer, device="cpu"):
@@ -18,15 +18,20 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device="cpu"):
         images, labels = images.to(device), labels.to(device)
 
         optimizer.zero_grad()
-        outputs = model(images)
-        loss = criterion(outputs, labels)
+        outputs = model(images.view(-1, 3, 224, 224))
+        loss = criterion(outputs, torch.argmax(labels.view(32, 4), dim=1).long())
         loss.backward()
         optimizer.step()
 
         running_loss += loss.item()
-        _, predicted = outputs.max(1)
-        correct += predicted.eq(labels).sum().item()
-        total += labels.size(0)
+        # _, predicted = outputs.max(1)
+        # correct += predicted.eq(labels).sum().item()
+        # total += labels.size(0)
+        predicted = torch.argmax(outputs, dim=1).data
+
+        # calculate the amount of correct predictions in batch
+        correct = (predicted == torch.argmax(labels.view(32, 4), dim=1)).sum()
+        # add batch corrects to the total amount in training epoch
 
     avg_loss = running_loss / len(dataloader)
     train_acc = 100.0 * correct / total
@@ -43,12 +48,12 @@ def evaluate(model, dataloader, criterion, device="cpu"):
     with torch.no_grad():
         for images, labels in dataloader:
             images, labels = images.to(device), labels.to(device)
-            outputs = model(images)
-            loss = criterion(outputs, labels)
+            outputs = model(images.view(-1, 3, 224, 224))
+            loss = criterion(outputs, torch.argmax(labels.view(32, 4), dim=1).long())
 
             running_loss += loss.item()
-            _, predicted = outputs.max(1)
-            correct += predicted.eq(labels).sum().item()
+            predicted = torch.argmax(outputs, dim=1).data
+            correct = (predicted == torch.argmax(labels.view(32, 4), dim=1)).sum()
             total += labels.size(0)
 
     avg_loss = running_loss / len(dataloader)
@@ -138,10 +143,12 @@ def main():
     )
 
     # Train for a few epochs (example: 2 epochs)
-    for epoch in range(2):
-        print(f"\nEpoch [{epoch+1}/2]")
-        train_one_epoch(model, train_loader, criterion, optimizer, device)
-        evaluate(model, valid_loader, criterion, device)
+    # for epoch in range(2):
+    #     print(f"\nEpoch [{epoch+1}/2]")
+    #     train_one_epoch(model, train_loader, criterion, optimizer, device)
+    #     evaluate(model, valid_loader, criterion, device)
+
+    train_and_save_best(model, train_loader, valid_loader, criterion, optimizer)
 
     print("\nFinal test evaluation:")
     evaluate(model, test_loader, criterion, device)
