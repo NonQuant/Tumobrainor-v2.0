@@ -6,7 +6,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 
 from model import AttentionResNet50
-from modules import load_model
+from load_model import load_model
 
 
 # Print iterations progress
@@ -145,7 +145,7 @@ def train_and_save_best(
     """
 
     best_val_acc = 0.0  # Track the highest validation accuracy
-    best_model_path = "best_model.pth"
+    best_model_path = "best_model2.pth"
 
     for epoch in range(num_epochs):
         print("-" * 50)
@@ -177,13 +177,13 @@ def train_and_save_best(
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    num_epochs = 1
+    num_epochs = 2
     from_pretrained = False
 
     if from_pretrained:
         # Load the pretrained TorchScript model
-        model_path = "best_model.pth"
-        model = load_model("best_model.pth", device=device)
+        model_path = "best_model2.pth"
+        model = load_model(model_path, device=device)
     else:
         # Build the attention-based ResNet model
         model = AttentionResNet50(num_classes=4, freeze_backbone=True).to(device)
@@ -207,7 +207,7 @@ def main():
     )
 
     print("\nFinal test evaluation:")
-    evaluate(model, valid_loader, criterion, "Final", device)
+    print(evaluate(model, test_loader, criterion, "TESTING", device))
 
 
 if __name__ == "__main__":
