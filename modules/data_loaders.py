@@ -5,12 +5,16 @@ import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from sklearn.model_selection import train_test_split
-from ..modules.dataset import TumobrainorDataset
+from dataset import TumobrainorDataset
 
 
 # loading saved training data
 with open("./dataset/training_data.pickle", "rb") as f:
     training_data = pickle.load(f)
+
+# loading saved testing data
+with open("./dataset/testing_data.pickle", "rb") as f:
+    testing_data = pickle.load(f)
 
 
 # extracting labels and features from training data
@@ -19,21 +23,22 @@ for X, y in training_data:
     labels_list.append(y)
     features_list.append(X)
 
-
-# 70 % training, 15% validating, 15% testing
-X_train, X_test, y_train, y_test = train_test_split(
+# 70 % training, 30% validating
+X_train, X_valid, y_train, y_valid = train_test_split(
     features_list, labels_list, test_size=0.3, shuffle=True
-)  # 70% training, 30% testing
-X_valid, X_test, y_valid, y_test = train_test_split(
-    X_test, y_test, test_size=0.5, shuffle=True
-)  # split testing set into 50% validation , 50% testing
+)
 
+# extracting labels and features from testing data
+labels_list, features_list = [], []
+for X, y in testing_data:
+    labels_list.append(y)
+    features_list.append(X)
+
+X_test, y_test = np.array(features_list), np.array(labels_list)
 
 # testing our dataset class
 koten_set = TumobrainorDataset(X_valid, y_valid)
 koten_loader = DataLoader(koten_set, batch_size=4, shuffle=True, pin_memory=True)
-for X, y in koten_loader:
-    print(X.shape, y.shape)
 
 
 # creating datasets from numpy arrays
@@ -56,7 +61,7 @@ test_loader = DataLoader(
 
 # testing data loader
 X, y = next(iter(test_loader))
-X.shape, y.shape, y
+print(X.shape, y.shape, y)
 
 
 # saving all data loaders

@@ -1,20 +1,56 @@
+import pickle
+import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-from dataset import TumobrainorDataset
 from model import AttentionResNet50
 
 
-def train_one_epoch(model, dataloader, criterion, optimizer, device="cpu"):
+# Print iterations progress
+def printProgressBar(
+    iteration,
+    total,
+    prefix="",
+    suffix="",
+    decimals=1,
+    length=100,
+    fill="█",
+    printEnd="\r",
+):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + "-" * (length - filledLength)
+    print(f"\r{prefix} |{bar}| {percent}% {suffix}", end=printEnd)
+    # Print New Line on Complete
+    if iteration == total:
+        print()
+
+
+def train_one_epoch(model, dataloader, criterion, optimizer, epoch, device="cpu"):
     # Standard training loop - returns (train_loss, train_acc)
     model.train()
     running_loss = 0.0
     correct = 0
-    total = 0
 
-    for images, labels in dataloader:
+    epoch_correct = 0
+
+    epoch_start = time.time()
+
+    for batch_num, (images, labels) in enumerate(dataloader):
         images, labels = images.to(device), labels.to(device)
 
         optimizer.zero_grad()
@@ -32,13 +68,26 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device="cpu"):
         # calculate the amount of correct predictions in batch
         correct = (predicted == torch.argmax(labels.view(32, 4), dim=1)).sum()
         # add batch corrects to the total amount in training epoch
+        epoch_correct += correct
 
+        printProgressBar(
+            batch_num + 1,
+            len(dataloader),
+            prefix=f"Epoch {epoch} | Batch {(batch_num + 1) * 4}",
+            suffix="",
+            length=50,
+        )
+
+    epoch_end = time.time() - epoch_start
     avg_loss = running_loss / len(dataloader)
-    train_acc = 100.0 * correct / total
+    train_acc = epoch_correct.item() * 100 / (4 * 8 * batch_num)
+    print(
+        f"Epoch {epoch} | Batch {(batch_num + 1) * 4}\nAccuracy: {train_acc:2.2f} | Loss: {avg_loss:2.4f} | Duration: {epoch_end / 60:.2f} minutes"
+    )
     return avg_loss, train_acc
 
 
-def evaluate(model, dataloader, criterion, device="cpu"):
+def evaluate(model, dataloader, criterion, epoch, device="cpu"):
     # Standard evaluation loop - returns (val_loss, val_acc)
     model.eval()
     running_loss = 0.0
@@ -46,7 +95,7 @@ def evaluate(model, dataloader, criterion, device="cpu"):
     total = 0
 
     with torch.no_grad():
-        for images, labels in dataloader:
+        for batch_num, (images, labels) in enumerate(dataloader):
             images, labels = images.to(device), labels.to(device)
             outputs = model(images.view(-1, 3, 224, 224))
             loss = criterion(outputs, torch.argmax(labels.view(32, 4), dim=1).long())
@@ -55,6 +104,14 @@ def evaluate(model, dataloader, criterion, device="cpu"):
             predicted = torch.argmax(outputs, dim=1).data
             correct = (predicted == torch.argmax(labels.view(32, 4), dim=1)).sum()
             total += labels.size(0)
+
+            printProgressBar(
+                batch_num + 1,
+                len(dataloader),
+                prefix=f"Validation Epoch {epoch} | Batch {(batch_num + 1) * 4}",
+                suffix="",
+                length=50,
+            )
 
     avg_loss = running_loss / len(dataloader)
     val_acc = 100.0 * correct / total
@@ -78,12 +135,12 @@ def train_and_save_best(
 
         # 1) Train
         train_loss, train_acc = train_one_epoch(
-            model, train_loader, criterion, optimizer, device
+            model, train_loader, criterion, optimizer, epoch, device
         )
         print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
 
         # 2) Validate
-        val_loss, val_acc = evaluate(model, valid_loader, criterion, device)
+        val_loss, val_acc = evaluate(model, valid_loader, criterion, epoch, device)
         print(f"Val   Loss: {val_loss:.4f}, Val   Acc: {val_acc:.2f}%")
 
         # 3) Check if this is the best validation accuracy so far
@@ -103,35 +160,13 @@ def train_and_save_best(
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Pretend you have numpy arrays (X_train, y_train, ...) ready
-    # X_* shape: (N, 3, H, W), y_* shape: (N,) with values {1..4}
-    # For demonstration, here we'll just create dummy data:
-    # (Replace these with your real dataset arrays)
-    N_train, N_valid, N_test = 32, 8, 8
-    X_train = torch.randn(N_train, 3, 224, 224)
-    y_train = torch.randint(1, 5, (N_train,))  # 4-class labels in {1..4}
-
-    X_valid = torch.randn(N_valid, 3, 224, 224)
-    y_valid = torch.randint(1, 5, (N_valid,))
-
-    X_test = torch.randn(N_test, 3, 224, 224)
-    y_test = torch.randint(1, 5, (N_test,))
-
-    # Create datasets
-    train_set = TumobrainorDataset(X_train, y_train)
-    valid_set = TumobrainorDataset(X_valid, y_valid)
-    test_set = TumobrainorDataset(X_test, y_test)
-
-    # Create data loaders
-    train_loader = DataLoader(
-        train_set, batch_size=4, shuffle=True, pin_memory=True, drop_last=True
-    )
-    valid_loader = DataLoader(
-        valid_set, batch_size=4, shuffle=False, pin_memory=True, drop_last=True
-    )
-    test_loader = DataLoader(
-        test_set, batch_size=4, shuffle=False, pin_memory=True, drop_last=True
-    )
+    # loading all dataloaders
+    with open("./dataset/train_loader.pickle", "rb") as f:
+        train_loader = pickle.load(f)
+    with open("./dataset/valid_loader.pickle", "rb") as f:
+        valid_loader = pickle.load(f)
+    with open("./dataset/test_loader.pickle", "rb") as f:
+        test_loader = pickle.load(f)
 
     # Build the attention-based ResNet model
     model = AttentionResNet50(num_classes=4, freeze_backbone=True).to(device)
@@ -142,16 +177,18 @@ def main():
         filter(lambda p: p.requires_grad, model.parameters()), lr=1e-3
     )
 
-    # Train for a few epochs (example: 2 epochs)
-    # for epoch in range(2):
-    #     print(f"\nEpoch [{epoch+1}/2]")
-    #     train_one_epoch(model, train_loader, criterion, optimizer, device)
-    #     evaluate(model, valid_loader, criterion, device)
+    num_epochs = 1
 
-    train_and_save_best(model, train_loader, valid_loader, criterion, optimizer)
+    # Train for a few epochs (example: 2 epochs)
+    for epoch in range(num_epochs):
+        print(f"\nEpoch [{epoch+1}/{num_epochs}]")
+        train_one_epoch(model, train_loader, criterion, optimizer, epoch + 1, device)
+        evaluate(model, valid_loader, criterion, epoch + 1, device)
+
+    # train_and_save_best(model, train_loader, valid_loader, criterion, optimizer)
 
     print("\nFinal test evaluation:")
-    evaluate(model, test_loader, criterion, device)
+    evaluate(model, test_loader, criterion, "Final", device)
 
 
 if __name__ == "__main__":
