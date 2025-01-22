@@ -99,6 +99,7 @@ def evaluate(model, dataloader, criterion, epoch, device="cpu"):
     model.eval()
     running_loss = 0.0
     correct = 0
+    epoch_correct = 0
     total = 0
 
     with torch.no_grad():
@@ -112,6 +113,7 @@ def evaluate(model, dataloader, criterion, epoch, device="cpu"):
             running_loss += loss.item()
             predicted = torch.argmax(outputs, dim=1).data
             correct = (predicted == torch.argmax(labels.view(32, 4), dim=1)).sum()
+            epoch_correct += correct
             total += labels.size(0)
 
             batch_end = time.time() - batch_start
@@ -128,7 +130,7 @@ def evaluate(model, dataloader, criterion, epoch, device="cpu"):
             )
 
     avg_loss = running_loss / len(dataloader)
-    val_acc = 100.0 * correct / total
+    val_acc = epoch_correct.item() * 100 / (4 * 8 * batch_num)
     return avg_loss, val_acc
 
 
