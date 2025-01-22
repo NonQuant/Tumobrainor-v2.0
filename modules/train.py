@@ -183,7 +183,7 @@ def main():
     if from_pretrained:
         # Load the pretrained TorchScript model
         model_path = "best_model.pth"
-        model = load_model("best_model_scripted.pth", device=device)
+        model = load_model("best_model.pth", device=device)
     else:
         # Build the attention-based ResNet model
         model = AttentionResNet50(num_classes=4, freeze_backbone=True).to(device)
