@@ -23,9 +23,9 @@ for X, y in training_data:
     labels_list.append(y)
     features_list.append(X)
 
-# 70 % training, 30% validating
+# 85% training, 15% validating
 X_train, X_valid, y_train, y_valid = train_test_split(
-    features_list, labels_list, test_size=0.3, shuffle=True
+    features_list, labels_list, test_size=0.15, shuffle=True
 )
 
 # extracting labels and features from testing data
