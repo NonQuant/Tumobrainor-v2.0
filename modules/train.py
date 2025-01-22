@@ -6,6 +6,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 
 from model import AttentionResNet50
+from modules import load_model
 
 
 # Print iterations progress
@@ -176,6 +177,22 @@ def train_and_save_best(
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    num_epochs = 1
+    from_pretrained = False
+
+    if from_pretrained:
+        # Load the pretrained TorchScript model
+        model_path = "best_model.pth"
+        model = load_model("best_model_scripted.pth", device=device)
+    else:
+        # Build the attention-based ResNet model
+        model = AttentionResNet50(num_classes=4, freeze_backbone=True).to(device)
+
+    # Loss & Optimizer
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()), lr=1e-3
+    )
 
     # loading all dataloaders
     with open("./dataset/train_loader.pickle", "rb") as f:
@@ -185,29 +202,12 @@ def main():
     with open("./dataset/test_loader.pickle", "rb") as f:
         test_loader = pickle.load(f)
 
-    # Build the attention-based ResNet model
-    model = AttentionResNet50(num_classes=4, freeze_backbone=True).to(device)
-
-    # Loss & Optimizer
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(
-        filter(lambda p: p.requires_grad, model.parameters()), lr=1e-3
-    )
-
-    num_epochs = 1
-
-    # Train for a few epochs (example: 2 epochs)
-    # for epoch in range(num_epochs):
-    #     print(f"\nEpoch [{epoch+1}/{num_epochs}]")
-    #     train_one_epoch(model, train_loader, criterion, optimizer, epoch + 1, device)
-    #     evaluate(model, valid_loader, criterion, epoch + 1, device)
-
     train_and_save_best(
         model, train_loader, valid_loader, criterion, optimizer, num_epochs, device
     )
 
     print("\nFinal test evaluation:")
-    evaluate(model, test_loader, criterion, "Final", device)
+    evaluate(model, valid_loader, criterion, "Final", device)
 
 
 if __name__ == "__main__":
